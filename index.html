@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NBA Coach Challenge Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050816;
+      --bg-card: #111827;
+      --bg-soft: #020617;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --accent-soft-strong: rgba(56, 189, 248, 0.25);
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --border: #1f2937;
+      --danger: #f97373;
+      --success: #4ade80;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 50%, #020617 100%);
+      color: var(--text);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(to right, rgba(15,23,42,0.95), rgba(2,6,23,0.98));
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, #38bdf8, #0ea5e9 40%, #0f172a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.6);
+      color: #f9fafb;
+    }
+
+    .brand-text-main {
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+    }
+
+    .brand-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      border-radius: 999px;
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 0.25rem 0.6rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(15,23,42,0.8);
+    }
+
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      header {
+        position: static;
+      }
+    }
+
+    .card {
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.05), rgba(15,23,42,0.96));
+      box-shadow: 0 10px 40px rgba(15,23,42,0.7);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 0.9rem 1rem 0.4rem 1rem;
+      border-bottom: 1px solid rgba(31,41,55,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+    }
+
+    .card-subtitle {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .card-body {
+      padding: 0.6rem 1rem 1rem 1rem;
+    }
+
+    .table-wrapper {
+      max-height: 70vh;
+      overflow: auto;
+      border-radius: 0.8rem;
+      border: 1px solid rgba(31,41,55,0.5);
+      background: radial-gradient(circle at top, rgba(15,23,42,0.8), rgba(15,23,42,0.97));
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      min-width: 640px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: linear-gradient(to right, #020617, #020617);
+    }
+
+    th, td {
+      padding: 0.45rem 0.55rem;
+      text-align: right;
+      border-bottom: 1px solid rgba(31,41,55,0.7);
+      white-space: nowrap;
+    }
+
+    th {
+      font-weight: 500;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    tbody tr {
+      transition: background 120ms ease, transform 80ms ease;
+    }
+
+    tbody tr:nth-child(odd) {
+      background-color: rgba(15,23,42,0.96);
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: rgba(15,23,42,0.9);
+    }
+
+    tbody tr:hover {
+      background: radial-gradient(circle at left, rgba(56,189,248,0.1), rgba(15,23,42,1));
+      transform: translateY(-1px);
+    }
+
+    th.sticky-col,
+    td.sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      text-align: left;
+      background: inherit;
+    }
+
+    th.rank-col,
+    td.rank-col {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      width: 46px;
+      text-align: center;
+      background: inherit;
+    }
+
+    td.rank-col span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(75,85,99,0.9);
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    td.team-cell {
+      text-align: left;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    td.team-cell button {
+      border: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    td.team-cell button .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 0.08rem 0.5rem;
+      font-size: 0.65rem;
+      border: 1px solid rgba(15,23,42,0.8);
+      background: radial-gradient(circle at top, rgba(56,189,248,0.16), rgba(15,23,42,0.9));
+      color: var(--accent);
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 0.12rem 0.5rem;
+      border: 1px solid rgba(55,65,81,1);
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .badge.good {
+      border-color: rgba(22,163,74,0.8);
+      color: var(--success);
+      background: rgba(22,163,74,0.07);
+    }
+
+    .badge.bad {
+      border-color: rgba(239,68,68,0.8);
+      color: var(--danger);
+      background: rgba(239,68,68,0.07);
+    }
+
+    .badge.neutral {
+      border-color: rgba(148,163,184,0.9);
+      color: var(--muted);
+      background: rgba(148,163,184,0.07);
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      margin-bottom: 0.4rem;
+      color: var(--muted);
+    }
+
+    .status-bar span strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .spark {
+      height: 4px;
+      width: 72px;
+      border-radius: 999px;
+      background: rgba(15,23,42,1);
+      overflow: hidden;
+      border: 1px solid rgba(31,41,55,1);
+    }
+
+    .spark-inner {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(52,211,153,1), rgba(56,189,248,1));
+      width: 0;
+      transition: width 200ms ease-out;
+    }
+
+    .chart-card {
+      margin-top: 0.6rem;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: radial-gradient(circle at top right, rgba(56,189,248,0.07), rgba(15,23,42,0.98));
+      padding: 0.75rem 0.8rem 0.85rem 0.8rem;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .chart-title {
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .chart-meta {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 210px;
+    }
+
+    @media (max-width: 480px) {
+      .chart-wrapper {
+        height: 200px;
+      }
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      backdrop-filter: blur(10px);
+    }
+
+    .modal {
+      max-width: 520px;
+      width: 92%;
+      border-radius: 1rem;
+      border: 1px solid rgba(55,65,81,0.95);
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.18), rgba(15,23,42,0.98));
+      box-shadow: 0 15px 50px rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      max-height: 90vh;
+    }
+
+    .modal-header {
+      padding: 0.75rem 0.9rem 0.4rem 0.9rem;
+      border-bottom: 1px solid rgba(31,41,55,0.9);
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .modal-subtitle {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .modal-body {
+      padding: 0.7rem 0.9rem 0.9rem 0.9rem;
+      overflow: auto;
+      font-size: 0.8rem;
+    }
+
+    .modal-footer {
+      padding: 0.55rem 0.9rem 0.7rem 0.9rem;
+      border-top: 1px solid rgba(31,41,55,0.9);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid rgba(75,85,99,1);
+      padding: 0.35rem 0.8rem;
+      font-size: 0.8rem;
+      background: rgba(15,23,42,0.95);
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .btn:hover {
+      background: rgba(15,23,42,1);
+      color: var(--text);
+      border-color: rgba(148,163,184,1);
+    }
+
+    .btn-primary {
+      border-color: rgba(56,189,248,0.9);
+      color: var(--accent);
+      background: radial-gradient(circle at top, rgba(15,23,42,1), rgba(8,47,73,1));
+    }
+
+    footer {
+      border-top: 1px solid rgba(31,41,55,0.9);
+      padding: 0.7rem 1.25rem 0.9rem 1.25rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: #020617;
+    }
+
+    footer .inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.8rem;
+      align-items: center;
+    }
+
+    .link-soft {
+      text-decoration: none;
+      color: var(--muted);
+    }
+
+    .link-soft:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.7rem;
+      margin-top: 0.1rem;
+    }
+
+    .loading {
+      font-size: 0.78rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(56,189,248,0.9);
+    }
+
+    .error {
+      font-size: 0.78rem;
+      color: var(--danger);
+      margin-top: 0.35rem;
+    }
+
+    .pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.3rem;
+    }
+
+    .pill-small {
+      border-radius: 999px;
+      border: 1px solid rgba(55,65,81,1);
+      padding: 0.12rem 0.4rem;
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+
+    .modal-key-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+
+    .modal-stat {
+      border-radius: 0.7rem;
+      border: 1px solid rgba(31,41,55,1);
+      padding: 0.45rem 0.55rem;
+      background: rgba(15,23,42,0.9);
+    }
+
+    .modal-stat-label {
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+
+    .modal-stat-value {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .modal-stat-sub {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-top: 0.1rem;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.72rem;
+      padding: 0.15rem 0.35rem;
+      border-radius: 999px;
+      background: rgba(15,23,42,1);
+      border: 1px solid rgba(31,41,55,1);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-logo">CC</div>
+        <div>
+          <div class="brand-text-main">NBA Coaches Challenge Tracker</div>
+          <div class="brand-sub">Live from Google Sheets on every load</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="pill">
+          <span style="width: 7px; height: 7px; border-radius: 999px; background: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.9);"></span>
+          Auto-refresh from CSV
+        </div>
+        <div class="pill">
+          Source: <code>Google Sheets CSV</code>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <!-- LEFT: TABLE -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">
+              Team Challenge Leaderboard
+            </div>
+            <div class="card-subtitle">
+              Sorted by challenge win percentage (ties broken by total volume)
+            </div>
+          </div>
+          <div id="status" class="loading">
+            <div class="dot"></div>
+            <span>Loading latest sheet&hellip;</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="status-bar">
+            <span>Click a <strong>team name</strong> to view coach breakdown.</span>
+            <span id="summaryBadge" class="badge neutral">No data yet</span>
+          </div>
+          <div class="spark">
+            <div id="sparkInner" class="spark-inner"></div>
+          </div>
+          <div id="error" class="error" style="display: none;"></div>
+
+          <div class="table-wrapper">
+            <table id="teamTable">
+              <thead>
+              <tr>
+                <th class="rank-col">#</th>
+                <th class="sticky-col">Team</th>
+                <th>Coach</th>
+                <th>Chal.</th>
+                <th>Won</th>
+                <th>Lost</th>
+                <th>Win %</th>
+                <th>Games</th>
+                <th>W</th>
+                <th>L</th>
+                <th>W-L %</th>
+              </tr>
+              </thead>
+              <tbody>
+              <!-- Filled via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: CHARTS -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">
+              Challenge Outcome & Reasons
+            </div>
+            <div class="card-subtitle" id="chartsTitle">
+              League-wide view. Select a team for a focused breakdown.
+            </div>
+          </div>
+          <span id="chartScopeBadge" class="badge neutral">Scope: League</span>
+        </div>
+        <div class="card-body">
+          <div class="chart-card">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Success vs Unsuccessful</div>
+                <div class="chart-meta" id="pieMeta">Totals will display once data loads</div>
+              </div>
+              <span class="pill-small">Pie chart</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="pieChart"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-top: 0.8rem;">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Reasons for Challenges</div>
+                <div class="chart-meta" id="barMeta">Top reasons by count, based on sheet columns</div>
+              </div>
+              <span class="pill-small">Bar chart</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="barChart"></canvas>
+            </div>
+          </div>
+
+          <div class="tagline">
+            Note: "Reasons" are inferred from columns with a <code>Reason_</code>-style name (e.g., <code>Reason_Foul</code>, <code>Reason_OutOfBounds</code>).
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="inner">
+      <div>Data source: Google Sheets CSV (read-only). Page is fully static on Netlify.</div>
+      <div>
+        Repo-friendly single file. Adjust the column name mappings in <code>index.html</code> as needed.
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- MODAL -->
+<div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <div>
+        <div id="modalTitle" class="modal-title">Team details</div>
+        <div id="modalSubtitle" class="modal-subtitle">Coach & challenge breakdown</div>
+      </div>
+      <button id="modalClose" class="btn" type="button">
+        ✕ Close
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="modalSummary"></div>
+      <div class="modal-key-stats" id="modalStats"></div>
+      <div style="margin-top: 0.6rem;">
+        <div class="modal-subtitle" style="margin-bottom: 0.2rem;">Challenge reasons (from sheet columns)</div>
+        <div id="modalReasons" class="pill-group"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="modalCloseBottom" class="btn btn-primary" type="button">
+        Got it
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==============================
+  // CONFIG: URL & COLUMN NAMES
+  // ==============================
+  const CSV_URL =
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIYpPtfdCbvxVLaI4MEHh8g_rJF-cVAVgu-O1i4FcYiGDJJ7gMaxpXytBc3BrxpIbwsLt5Ql-iSGbF/pub?gid=1637879232&single=true&output=csv";
+
+  // Column name candidates – tweak these to match your sheet headers.
+  const COLUMNS = {
+    team: ["Team", "Team Name", "Franchise"],
+    coach: ["Coach", "Head Coach"],
+    // Challenge stats
+    challengesTotal: ["Challenges", "Total Challenges", "Ch_Total"],
+    challengesWon: ["Won", "Overturned", "Successful", "Ch_Won"],
+    challengesLost: ["Lost", "Stands", "Unsuccessful", "Ch_Lost"],
+    // Team record
+    gamesPlayed: ["Games", "GP"],
+    wins: ["Record W", "Wins", "W"],
+    losses: ["Record L", "Losses", "L"],
+    winPct: ["W-L %", "Win%", "Win Pct", "Record %"],
+    // If you have a specific "Challenge Win %" column, add it here:
+    challengeWinPct: ["Challenge %", "Ch Win %", "Challenge Win %"]
+  };
+
+  // Reason columns will be auto-detected by prefix:
+  const REASON_PREFIXES = ["Reason_", "R_", "Challenge_Reason_"];
+
+  // ==============================
+  // Small helpers
+  // ==============================
+  function splitCsvLine(line) {
+    // Simple parser: fine for "normal" Sheets CSV w/o crazy quoting.
+    const out = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        out.push(cur);
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map(s => s.trim());
+  }
+
+  function parseCsv(text) {
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    if (!lines.length) return { headers: [], rows: [] };
+    const headers = splitCsvLine(lines[0]);
+    const rows = lines.slice(1).map(line => {
+      const cols = splitCsvLine(line);
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = cols[idx] ?? "";
+      });
+      return row;
+    });
+    return { headers, rows };
+  }
+
+  function findColumn(headers, candidates) {
+    for (const name of candidates) {
+      const idx = headers.findIndex(h => h.trim().toLowerCase() === name.trim().toLowerCase());
+      if (idx !== -1) return headers[idx];
+    }
+    return null;
+  }
+
+  function safeNumber(value) {
+    if (value === null || value === undefined) return 0;
+    const n = parseFloat(String(value).replace(/[,%]/g, "").trim());
+    return isNaN(n) ? 0 : n;
+  }
+
+  function formatPct(value) {
+    if (!isFinite(value)) return "0.0%";
+    return (value * 100).toFixed(1) + "%";
+  }
+
+  // ==============================
+  // Main data loading
+  // ==============================
+  async function loadData() {
+    const statusEl = document.getElementById("status");
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    statusEl.innerHTML = '<div class="dot"></div><span>Loading latest sheet…</span>';
+
+    try {
+      const res = await fetch(CSV_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const csvText = await res.text();
+      const { headers, rows } = parseCsv(csvText);
+
+      if (!headers.length || !rows.length) {
+        throw new Error("No rows found in CSV");
+      }
+
+      const mapped = mapRowsToTeams(headers, rows);
+      renderTable(mapped);
+      setupCharts(mapped);
+
+      statusEl.innerHTML = '<span class="dot"></span><span>Live data loaded</span>';
+    } catch (err) {
+      console.error(err);
+      statusEl.innerHTML = '<span style="color:#f97373;">Failed to load</span>';
+      const errorEl = document.getElementById("error");
+      errorEl.style.display = "block";
+      errorEl.textContent = "Error loading CSV: " + err.message;
+    }
+  }
+
+  function mapRowsToTeams(headers, rows) {
+    const teamCol = findColumn(headers, COLUMNS.team) || headers[0];
+    const coachCol = findColumn(headers, COLUMNS.coach);
+    const chTotalCol = findColumn(headers, COLUMNS.challengesTotal);
+    const chWonCol = findColumn(headers, COLUMNS.challengesWon);
+    const chLostCol = findColumn(headers, COLUMNS.challengesLost);
+    const gamesCol = findColumn(headers, COLUMNS.gamesPlayed);
+    const winsCol = findColumn(headers, COLUMNS.wins);
+    const lossesCol = findColumn(headers, COLUMNS.losses);
+    const winPctCol = findColumn(headers, COLUMNS.winPct);
+    const chPctCol = findColumn(headers, COLUMNS.challengeWinPct);
+
+    // Detect reason columns
+    const reasonCols = headers.filter(h =>
+      REASON_PREFIXES.some(pref => h.startsWith(pref))
+    );
+
+    const teams = rows.map(row => {
+      const wins = winsCol ? safeNumber(row[winsCol]) : 0;
+      const losses = lossesCol ? safeNumber(row[lossesCol]) : 0;
+      const games = gamesCol ? safeNumber(row[gamesCol]) : (wins + losses);
+      const wlPct = winPctCol
+        ? safeNumber(row[winPctCol]) / (String(row[winPctCol]).includes("%") ? 100 : 1)
+        : (wins + losses > 0 ? wins / (wins + losses) : 0);
+
+      const chTotalRaw = chTotalCol ? safeNumber(row[chTotalCol]) : null;
+      const chWon = chWonCol ? safeNumber(row[chWonCol]) : 0;
+      const chLost = chLostCol ? safeNumber(row[chLostCol]) : 0;
+      const chTotal = chTotalRaw !== null ? chTotalRaw : (chWon + chLost);
+      let chPct;
+      if (chPctCol) {
+        const v = safeNumber(row[chPctCol]);
+        chPct = v > 1.1 ? v / 100 : v; // treat "45.2" vs "0.45"
+      } else {
+        chPct = chTotal > 0 ? chWon / chTotal : 0;
+      }
+
+      const reasons = {};
+      reasonCols.forEach(col => {
+        const v = safeNumber(row[col]);
+        if (v > 0) {
+          const key = col.replace(/^Reason_/, "").replace(/^Challenge_Reason_/, "").replace(/^R_/, "");
+          reasons[key] = v;
+        }
+      });
+
+      return {
+        raw: row,
+        team: row[teamCol] || "",
+        coach: coachCol ? (row[coachCol] || "") : "",
+        challengesTotal: chTotal,
+        challengesWon: chWon,
+        challengesLost: chLost,
+        challengeWinPct: chPct,
+        games,
+        wins,
+        losses,
+        wlPct,
+        reasons
+      };
+    });
+
+    // Sort: primary challenge win %, secondary challenge volume
+    teams.sort((a, b) => {
+      if (b.challengeWinPct !== a.challengeWinPct) {
+        return b.challengeWinPct - a.challengeWinPct;
+      }
+      return (b.challengesTotal || 0) - (a.challengesTotal || 0);
+    });
+
+    return {
+      headers,
+      teams,
+      reasonCols
+    };
+  }
+
+  // ==============================
+  // Table rendering & modal
+  // ==============================
+  function renderTable(mapped) {
+    const { teams } = mapped;
+    const tbody = document.querySelector("#teamTable tbody");
+    tbody.innerHTML = "";
+
+    let totalCh = 0;
+    let totalChWon = 0;
+    teams.forEach(t => {
+      totalCh += t.challengesTotal || 0;
+      totalChWon += t.challengesWon || 0;
+    });
+    const leagueChPct = totalCh > 0 ? totalChWon / totalCh : 0;
+
+    const summaryBadge = document.getElementById("summaryBadge");
+    summaryBadge.textContent = `${teams.length} teams · League challenge win ${formatPct(leagueChPct)}`;
+    summaryBadge.className = "badge neutral";
+
+    const sparkInner = document.getElementById("sparkInner");
+    sparkInner.style.width = Math.min(100, Math.max(leagueChPct * 100, 5)) + "%";
+
+    teams.forEach((t, idx) => {
+      const tr = document.createElement("tr");
+
+      const rankTd = document.createElement("td");
+      rankTd.className = "rank-col";
+      rankTd.innerHTML = `<span>${idx + 1}</span>`;
+      tr.appendChild(rankTd);
+
+      const teamTd = document.createElement("td");
+      teamTd.className = "sticky-col team-cell";
+      const badgeClass =
+        t.challengeWinPct >= 0.6 ? "good"
+          : t.challengeWinPct <= 0.4 ? "bad"
+          : "neutral";
+      teamTd.innerHTML = `
+        <button type="button" data-team-index="${idx}">
+          <span>${t.team || "—"}</span>
+          <span class="chip ${badgeClass}">
+            ${formatPct(t.challengeWinPct || 0)}
+          </span>
+        </button>
+      `;
+      tr.appendChild(teamTd);
+
+      const coachTd = document.createElement("td");
+      coachTd.textContent = t.coach || "—";
+      tr.appendChild(coachTd);
+
+      const chTotalTd = document.createElement("td");
+      chTotalTd.textContent = t.challengesTotal || 0;
+      tr.appendChild(chTotalTd);
+
+      const chWonTd = document.createElement("td");
+      chWonTd.textContent = t.challengesWon || 0;
+      tr.appendChild(chWonTd);
+
+      const chLostTd = document.createElement("td");
+      chLostTd.textContent = t.challengesLost || 0;
+      tr.appendChild(chLostTd);
+
+      const chPctTd = document.createElement("td");
+      chPctTd.textContent = formatPct(t.challengeWinPct || 0);
+      tr.appendChild(chPctTd);
+
+      const gamesTd = document.createElement("td");
+      gamesTd.textContent = t.games || (t.wins + t.losses) || 0;
+      tr.appendChild(gamesTd);
+
+      const winsTd = document.createElement("td");
+      winsTd.textContent = t.wins || 0;
+      tr.appendChild(winsTd);
+
+      const lossesTd = document.createElement("td");
+      lossesTd.textContent = t.losses || 0;
+      tr.appendChild(lossesTd);
+
+      const wlPctTd = document.createElement("td");
+      wlPctTd.textContent = formatPct(t.wlPct || 0);
+      tr.appendChild(wlPctTd);
+
+      tbody.appendChild(tr);
+    });
+
+    // Delegate click events for team buttons
+    tbody.addEventListener("click", ev => {
+      const btn = ev.target.closest("button[data-team-index]");
+      if (!btn) return;
+      const idx = parseInt(btn.getAttribute("data-team-index"), 10);
+      const team = teams[idx];
+      if (team) {
+        openTeamModal(team);
+        updateChartsForTeam(team, mapped);
+      }
+    }, { once: true }); // we only need to attach once
+  }
+
+  function openTeamModal(team) {
+    const backdrop = document.getElementById("modalBackdrop");
+    const title = document.getElementById("modalTitle");
+    const subtitle = document.getElementById("modalSubtitle");
+    const summary = document.getElementById("modalSummary");
+    const stats = document.getElementById("modalStats");
+    const reasonsEl = document.getElementById("modalReasons");
+
+    title.textContent = team.team || "Team details";
+    subtitle.textContent = team.coach
+      ? `Head Coach: ${team.coach}`
+      : "Coach details not available";
+
+    const chTotal = team.challengesTotal || 0;
+    const chWon = team.challengesWon || 0;
+    const chLost = team.challengesLost || 0;
+    const chPct = team.challengeWinPct || 0;
+
+    summary.innerHTML = `
+      <p>
+        This view pulls directly from the current Google Sheet row for
+        <strong>${team.team || "this team"}</strong>. Numbers here reflect the latest published CSV.
+      </p>
+    `;
+
+    stats.innerHTML = "";
+
+    const statDefs = [
+      {
+        label: "Challenges",
+        value: chTotal,
+        sub: `${chWon} won • ${chLost} lost (${formatPct(chPct)})`
+      },
+      {
+        label: "Team record",
+        value: `${team.wins || 0}-${team.losses || 0}`,
+        sub: team.wlPct ? `W-L %: ${formatPct(team.wlPct)}` : "No record data"
+      },
+      {
+        label: "Games with challenge",
+        value: team.games || (team.wins + team.losses) || "—",
+        sub: "Depends on sheet structure"
+      }
+    ];
+
+    statDefs.forEach(s => {
+      const div = document.createElement("div");
+      div.className = "modal-stat";
+      div.innerHTML = `
+        <div class="modal-stat-label">${s.label}</div>
+        <div class="modal-stat-value">${s.value}</div>
+        <div class="modal-stat-sub">${s.sub}</div>
+      `;
+      stats.appendChild(div);
+    });
+
+    reasonsEl.innerHTML = "";
+    const reasonsEntries = Object.entries(team.reasons);
+    if (!reasonsEntries.length) {
+      reasonsEl.innerHTML = `<span class="pill-small">No explicit reason columns found for this team.</span>`;
+    } else {
+      reasonsEntries.sort((a, b) => b[1] - a[1]).forEach(([reason, count]) => {
+        const pill = document.createElement("span");
+        pill.className = "pill-small";
+        pill.textContent = `${reason}: ${count}`;
+        reasonsEl.appendChild(pill);
+      });
+    }
+
+    backdrop.style.display = "flex";
+    backdrop.setAttribute("aria-hidden", "false");
+  }
+
+  function closeTeamModal() {
+    const backdrop = document.getElementById("modalBackdrop");
+    backdrop.style.display = "none";
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+
+  document.getElementById("modalClose").addEventListener("click", closeTeamModal);
+  document.getElementById("modalCloseBottom").addEventListener("click", closeTeamModal);
+  document.getElementById("modalBackdrop").addEventListener("click", ev => {
+    if (ev.target.id === "modalBackdrop") {
+      closeTeamModal();
+    }
+  });
+  window.addEventListener("keydown", ev => {
+    if (ev.key === "Escape") closeTeamModal();
+  });
+
+  // ==============================
+  // Charts
+  // ==============================
+  let pieChartInstance = null;
+  let barChartInstance = null;
+
+  function setupCharts(mapped) {
+    const { teams } = mapped;
+
+    // League totals
+    const totals = teams.reduce((acc, t) => {
+      acc.chTotal += t.challengesTotal || 0;
+      acc.chWon += t.challengesWon || 0;
+      acc.chLost += t.challengesLost || 0;
+      // reasons
+      Object.entries(t.reasons).forEach(([reason, count]) => {
+        acc.reasons[reason] = (acc.reasons[reason] || 0) + (count || 0);
+      });
+      return acc;
+    }, { chTotal: 0, chWon: 0, chLost: 0, reasons: {} });
+
+    const pieCtx = document.getElementById("pieChart").getContext("2d");
+    const barCtx = document.getElementById("barChart").getContext("2d");
+
+    const pieData = {
+      labels: ["Successful", "Unsuccessful"],
+      datasets: [{
+        data: [totals.chWon, totals.chLost]
+      }]
+    };
+
+    pieChartInstance = new Chart(pieCtx, {
+      type: "pie",
+      data: pieData,
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: "#e5e7eb",
+              font: { size: 11 }
+            }
+          }
+        }
+      }
+    });
+
+    const reasonsEntries = Object.entries(totals.reasons).sort((a, b) => b[1] - a[1]);
+    const topReasons = reasonsEntries.slice(0, 8);
+
+    barChartInstance = new Chart(barCtx, {
+      type: "bar",
+      data: {
+        labels: topReasons.map(([r]) => r),
+        datasets: [{
+          label: "Count",
+          data: topReasons.map(([, c]) => c)
+        }]
+      },
+      options: {
+        scales: {
+          x: {
+            ticks: { color: "#e5e7eb", font: { size: 10 } },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: "#9ca3af", font: { size: 10 } },
+            grid: { color: "rgba(31,41,55,0.7)" }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: {
+              color: "#e5e7eb",
+              font: { size: 11 }
+            }
+          }
+        }
+      }
+    });
+
+    const chartsTitle = document.getElementById("chartsTitle");
+    const chartScopeBadge = document.getElementById("chartScopeBadge");
+    const pieMeta = document.getElementById("pieMeta");
+    const barMeta = document.getElementById("barMeta");
+
+    chartsTitle.textContent = "League-wide view. Click a team to pivot these charts.";
+    chartScopeBadge.textContent = "Scope: League";
+    chartScopeBadge.className = "badge neutral";
+
+    pieMeta.textContent =
+      `League total: ${totals.chTotal} challenges (${totals.chWon} successful, ${totals.chLost} unsuccessful).`;
+    if (topReasons.length) {
+      barMeta.textContent = "Top challenge reasons league-wide.";
+    } else {
+      barMeta.textContent = "No explicit reason columns detected in sheet.";
+    }
+
+    // Keep mapped so we can use it later
+    window.__challengeData = mapped;
+  }
+
+  function updateChartsForTeam(team, mapped) {
+    if (!pieChartInstance || !barChartInstance) return;
+
+    const chTotal = team.challengesTotal || 0;
+    const chWon = team.challengesWon || 0;
+    const chLost = team.challengesLost || 0;
+
+    pieChartInstance.data.datasets[0].data = [chWon, chLost];
+    pieChartInstance.update();
+
+    const reasonsEntries = Object.entries(team.reasons).sort((a, b) => b[1] - a[1]);
+    const topReasons = reasonsEntries.slice(0, 8);
+
+    barChartInstance.data.labels = topReasons.map(([r]) => r);
+    barChartInstance.data.datasets[0].data = topReasons.map(([, c]) => c);
+    barChartInstance.update();
+
+    const chartsTitle = document.getElementById("chartsTitle");
+    const chartScopeBadge = document.getElementById("chartScopeBadge");
+    const pieMeta = document.getElementById("pieMeta");
+    const barMeta = document.getElementById("barMeta");
+
+    chartsTitle.textContent =
+      `Focused view: ${team.team || "this team"}. Click another team or refresh to go back to league view.`;
+    chartScopeBadge.textContent = `Scope: ${team.team || "Team"}`;
+    chartScopeBadge.className = "badge good";
+
+    pieMeta.textContent =
+      `${team.team || "This team"}: ${chTotal} challenges (${chWon} successful, ${chLost} unsuccessful).`;
+    if (topReasons.length) {
+      barMeta.textContent = `${team.team || "This team"} challenge reasons.`;
+    } else {
+      barMeta.textContent = "No explicit reason columns detected for this team.";
+    }
+  }
+
+  // Kick things off
+  document.addEventListener("DOMContentLoaded", loadData);
+</script>
+</body>
+</html>
