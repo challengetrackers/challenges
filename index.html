@@ -710,9 +710,9 @@
     const s = String(value || "").trim().toLowerCase();
     if (s === "successful") return "success";
     if (s === "unsuccessful") return "fail";
-    // If there are other variants, you can expand this logic:
-    // e.g., if (s.includes("overturned")) return "success";
-    //       if (s.includes("stands")) return "fail";
+    // If you ever add more variants, expand here:
+    // if (s.includes("overturned")) return "success";
+    // if (s.includes("stands")) return "fail";
     return "fail";
   }
 
