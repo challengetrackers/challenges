@@ -525,13 +525,15 @@
         <div class="brand-logo">CC</div>
         <div>
           <div class="brand-main">NBA Coaches Challenges</div>
-          <div class="brand-sub">Live stats from Google Sheets (H: Team, I: Result, D: Reason)</div>
+          <div class="brand-sub">
+            Live stats from Google Sheets (Team: H, Result: I, Reason: D)
+          </div>
         </div>
       </div>
       <div class="header-meta">
         <div class="pill">
           <span class="dot"></span>
-          <span>Fetches CSV on every page load</span>
+          <span>Fetches CSV via Netlify Function (GOOGLE_SHEET_URL)</span>
         </div>
       </div>
     </div>
@@ -545,7 +547,7 @@
           <div>
             <div class="card-title">Team Challenge Leaderboard</div>
             <div class="card-subtitle">
-              One row per team, ranked by challenge success percentage (success / total).
+              One row per team, ranked by challenge success percentage (Successful / Total).
             </div>
           </div>
           <div id="status" class="loading">
@@ -625,8 +627,8 @@
 
   <footer>
     <div class="inner">
-      <div>Data source: published Google Sheets CSV. Each row = one challenge.</div>
-      <div>Mapping: Team (H), Result (I), Reason (D).</div>
+      <div>Data source: published Google Sheets CSV (env: GOOGLE_SHEET_URL). One row = one challenge.</div>
+      <div>Mapping: Team (H), Result (I: “Successful” / “Unsuccessful”), Reason (D).</div>
     </div>
   </footer>
 </div>
@@ -659,8 +661,8 @@
   // =========================
   // CONFIG
   // =========================
-  const CSV_URL =
-    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIYpPtfdCbvxVLaI4MEHh8g_rJF-cVAVgu-O1i4FcYiGDJJ7gMaxpXytBc3BrxpIbwsLt5Ql-iSGbF/pub?gid=1637879232&single=true&output=csv";
+  // We call a Netlify Function that hides GOOGLE_SHEET_URL on the server side
+  const CSV_ENDPOINT = "/.netlify/functions/fetch-sheet";
 
   // Column indices (0-based)
   // A=0, B=1, C=2, D=3, ..., H=7, I=8
@@ -703,18 +705,14 @@
   // =========================
   // Outcome classification
   // =========================
+  // Column I is assumed to literally contain "Successful" or "Unsuccessful"
   function classifyOutcome(value) {
-    if (!value) return "unknown";
-    const s = String(value).toLowerCase();
-
-    // You can tweak these if your sheet uses different phrasing
-    const successTokens = ["successful", "overturned", "overturn", "reversed"];
-    const failTokens = ["unsuccessful", "stands", "confirmed", "upheld"];
-
-    if (successTokens.some(t => s.includes(t))) return "success";
-    if (failTokens.some(t => s.includes(t))) return "fail";
-
-    // Default: treat unknown as fail so totals still add up
+    const s = String(value || "").trim().toLowerCase();
+    if (s === "successful") return "success";
+    if (s === "unsuccessful") return "fail";
+    // If there are other variants, you can expand this logic:
+    // e.g., if (s.includes("overturned")) return "success";
+    //       if (s.includes("stands")) return "fail";
     return "fail";
   }
 
@@ -815,9 +813,6 @@
 
       const teamTd = document.createElement("td");
       teamTd.className = "sticky-col team-cell";
-      const badgeClass =
-        t.successPct >= 0.6 ? "good" :
-        t.successPct <= 0.4 ? "bad" : "neutral";
       teamTd.innerHTML = `
         <button type="button" data-team="${encodeURIComponent(t.team)}">
           <span>${t.team}</span>
@@ -857,10 +852,7 @@
     }, { once: true });
 
     // stash league totals & team list for charts
-    window.__leagueData = {
-      teams,
-      totals: { totalChallenges, totalSuccess, totalFail }
-    };
+    window.__leagueData = { teams };
   }
 
   // =========================
@@ -881,8 +873,8 @@
 
     summaryEl.innerHTML = `
       <p>
-        This breakdown is built directly from each challenge row in the Google Sheet
-        where <strong>Team (H)</strong> equals <strong>${team.team}</strong>.
+        This breakdown is built from each challenge row where
+        <strong>Team (column H)</strong> equals <strong>${team.team}</strong>.
       </p>
     `;
 
@@ -1093,7 +1085,7 @@
     statusEl.innerHTML = '<div class="dot"></div><span>Loading latest data…</span>';
 
     try {
-      const res = await fetch(CSV_URL, { cache: "no-store" });
+      const res = await fetch(CSV_ENDPOINT, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const text = await res.text();
       const rows = parseCsvToRows(text);
