@@ -515,6 +515,26 @@
       gap: 0.3rem;
       margin-top: 0.35rem;
     }
+
+    /* Quarter breakdown table in modal */
+    .modal-quarter-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+      margin-top: 0.25rem;
+    }
+
+    .modal-quarter-table th,
+    .modal-quarter-table td {
+      padding: 0.18rem 0.3rem;
+      text-align: right;
+      border-bottom: 1px solid rgba(31,41,55,0.7);
+    }
+
+    .modal-quarter-table th:first-child,
+    .modal-quarter-table td:first-child {
+      text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -526,7 +546,7 @@
         <div>
           <div class="brand-main">NBA Coaches Challenges</div>
           <div class="brand-sub">
-            Live stats from Google Sheets (Team: H, Result: I, Reason: D)
+            Live stats from Google Sheets (Team: H, Result: I, Reason: D, Quarter: J)
           </div>
         </div>
       </div>
@@ -628,7 +648,7 @@
   <footer>
     <div class="inner">
       <div>Data source: published Google Sheets CSV (env: GOOGLE_SHEET_URL). One row = one challenge.</div>
-      <div>Mapping: Team (H), Result (I: “Successful” / “Unsuccessful”), Reason (D).</div>
+      <div>Mapping: Team (H), Result (I: “Successful” / “Unsuccessful”), Reason (D), Quarter (J).</div>
     </div>
   </footer>
 </div>
@@ -646,9 +666,15 @@
     <div class="modal-body">
       <div id="modalSummary"></div>
       <div id="modalStats" class="modal-stats"></div>
+
       <div style="margin-top:0.6rem;">
         <div class="modal-subtitle" style="margin-bottom:0.2rem;">Reasons (from column D)</div>
         <div id="modalReasons" class="pill-group"></div>
+      </div>
+
+      <div style="margin-top:0.8rem;">
+        <div class="modal-subtitle" style="margin-bottom:0.2rem;">Quarter breakdown (from column J)</div>
+        <div id="modalQuarterTable"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -665,10 +691,11 @@
   const CSV_ENDPOINT = "/.netlify/functions/fetch-sheet";
 
   // Column indices (0-based)
-  // A=0, B=1, C=2, D=3, ..., H=7, I=8
-  const TEAM_COL = 7;     // H
-  const RESULT_COL = 8;   // I
-  const REASON_COL = 3;   // D
+  // A=0, B=1, C=2, D=3, ..., H=7, I=8, J=9
+  const TEAM_COL    = 7; // H
+  const RESULT_COL  = 8; // I
+  const REASON_COL  = 3; // D
+  const QUARTER_COL = 9; // J
 
   // =========================
   // CSV parsing
@@ -725,35 +752,50 @@
     const teamMap = new Map();
 
     for (const row of dataRows) {
-      if (!row || row.length <= Math.max(TEAM_COL, RESULT_COL, REASON_COL)) continue;
+      if (!row || row.length <= Math.max(TEAM_COL, RESULT_COL, REASON_COL, QUARTER_COL)) continue;
 
       const team = row[TEAM_COL]?.trim();
       if (!team) continue;
 
-      const resultRaw = row[RESULT_COL] || "";
-      const reasonRaw = row[REASON_COL]?.trim() || "Unknown";
+      const resultRaw  = row[RESULT_COL] || "";
+      const reasonRaw  = row[REASON_COL]?.trim() || "Unknown";
+      const quarterRaw = row[QUARTER_COL]?.trim() || "Unknown";
 
       const outcome = classifyOutcome(resultRaw);
+
       if (!teamMap.has(team)) {
         teamMap.set(team, {
           team,
           challengesTotal: 0,
           successful: 0,
           unsuccessful: 0,
-          reasons: {}  // reason -> count
+          reasons: {},    // reason -> count
+          byQuarter: {}   // quarter -> { total, success, fail }
         });
       }
+
       const entry = teamMap.get(team);
       entry.challengesTotal++;
 
-      if (outcome === "success") {
+      const isSuccess = outcome === "success";
+      if (isSuccess) {
         entry.successful++;
       } else if (outcome === "fail") {
         entry.unsuccessful++;
       }
 
+      // Reasons
       if (!entry.reasons[reasonRaw]) entry.reasons[reasonRaw] = 0;
       entry.reasons[reasonRaw]++;
+
+      // Quarter breakdown
+      if (!entry.byQuarter[quarterRaw]) {
+        entry.byQuarter[quarterRaw] = { total: 0, success: 0, fail: 0 };
+      }
+      const q = entry.byQuarter[quarterRaw];
+      q.total++;
+      if (isSuccess) q.success++;
+      else q.fail++;
     }
 
     const teams = Array.from(teamMap.values()).map(t => {
@@ -859,12 +901,13 @@
   // Modal
   // =========================
   function openTeamModal(team) {
-    const backdrop = document.getElementById("modalBackdrop");
-    const titleEl = document.getElementById("modalTitle");
+    const backdrop   = document.getElementById("modalBackdrop");
+    const titleEl    = document.getElementById("modalTitle");
     const subtitleEl = document.getElementById("modalSubtitle");
-    const summaryEl = document.getElementById("modalSummary");
-    const statsEl = document.getElementById("modalStats");
-    const reasonsEl = document.getElementById("modalReasons");
+    const summaryEl  = document.getElementById("modalSummary");
+    const statsEl    = document.getElementById("modalStats");
+    const reasonsEl  = document.getElementById("modalReasons");
+    const quarterEl  = document.getElementById("modalQuarterTable");
 
     titleEl.textContent = team.team;
     subtitleEl.textContent = "Challenge breakdown from current sheet.";
@@ -904,6 +947,7 @@
       statsEl.appendChild(div);
     });
 
+    // Reasons
     reasonsEl.innerHTML = "";
     const reasonsEntries = Object.entries(team.reasons || {});
     if (!reasonsEntries.length) {
@@ -917,6 +961,58 @@
           span.textContent = `${reason}: ${count}`;
           reasonsEl.appendChild(span);
         });
+    }
+
+    // Quarter breakdown
+    quarterEl.innerHTML = "";
+    const quartersEntries = Object.entries(team.byQuarter || {});
+
+    if (!quartersEntries.length) {
+      quarterEl.innerHTML = `<span class="pill-small">No quarter data recorded for this team.</span>`;
+    } else {
+      // Optional ordering for typical labels like Q1–Q4, OT, etc.
+      const order = ["Q1", "Q2", "Q3", "Q4", "1st", "2nd", "3rd", "4th", "OT", "Overtime"];
+      quartersEntries.sort((a, b) => {
+        const [qa] = a;
+        const [qb] = b;
+        const ia = order.findIndex(k => qa.toLowerCase().includes(k.toLowerCase()));
+        const ib = order.findIndex(k => qb.toLowerCase().includes(k.toLowerCase()));
+        if (ia === -1 && ib === -1) return qa.localeCompare(qb);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+
+      const rowsHtml = quartersEntries.map(([quarter, q]) => {
+        const pct = q.total > 0 ? (q.success / q.total) : 0;
+        const pctStr = (pct * 100).toFixed(1) + "%";
+        return `
+          <tr>
+            <td>${quarter}</td>
+            <td>${q.total}</td>
+            <td>${q.success}</td>
+            <td>${q.fail}</td>
+            <td>${pctStr}</td>
+          </tr>
+        `;
+      }).join("");
+
+      quarterEl.innerHTML = `
+        <table class="modal-quarter-table">
+          <thead>
+            <tr>
+              <th>Quarter</th>
+              <th>Challenges</th>
+              <th>Successful</th>
+              <th>Unsuccessful</th>
+              <th>Success %</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      `;
     }
 
     backdrop.style.display = "flex";
@@ -1092,7 +1188,7 @@
       if (!rows.length) throw new Error("Empty CSV");
 
       const teams = buildTeamStats(rows);
-      if (!teams.length) throw new Error("No challenge rows mapped from columns H, I, D.");
+      if (!teams.length) throw new Error("No challenge rows mapped from columns H, I, D, J.");
 
       renderTable(teams);
       initCharts(teams);
